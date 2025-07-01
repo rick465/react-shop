@@ -14,15 +14,6 @@ const MainLayout: React.FC<PropsWithChildren> = ({ children }) => {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
               {/* Logo & Description */}
               <div className="col-span-1 md:col-span-2">
-                <div className="flex items-center space-x-3 mb-4">
-                  <div className="w-10 h-10 bg-gradient-to-br from-primary-600 to-primary-700 rounded-lg flex items-center justify-center">
-                    <span className="text-white font-bold text-xl">C</span>
-                  </div>
-                  <div>
-                    <div className="text-xl font-bold">CUBE</div>
-                    <div className="text-sm text-secondary-300">精選貴賓專區</div>
-                  </div>
-                </div>
                 <p className="text-secondary-300 mb-6 max-w-md">
                   我們致力於為貴賓會員提供最優質的服務體驗，從精選商品到專屬權益，讓您的每一次購物都充滿驚喜。
                 </p>

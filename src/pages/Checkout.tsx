@@ -1,5 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { tw, commonStyles } from '../utils/tw';
+import { useCart } from '../hooks/useCart';
+import { useNavigate } from 'react-router-dom';
+import { useOrders } from '../contexts/OrderContext';
+import { useAuth } from '../hooks/useAuth';
 
 interface CheckoutForm {
   firstName: string;
@@ -16,6 +20,11 @@ interface CheckoutForm {
 }
 
 const Checkout: React.FC = () => {
+  const navigate = useNavigate();
+  const { cartItems, getTotalPrice, clearCart } = useCart();
+  const { createOrder } = useOrders();
+  const { user } = useAuth();
+
   const [form, setForm] = useState<CheckoutForm>({
     firstName: '',
     lastName: '',
@@ -31,6 +40,35 @@ const Checkout: React.FC = () => {
   });
   const [loading, setLoading] = useState(false);
 
+  // 計算訂單總計
+  const { subtotal, shipping, total } = useMemo(() => {
+    const subtotal = getTotalPrice();
+    const shipping = subtotal > 10000 ? 0 : 300;
+    const total = subtotal + shipping;
+    return { subtotal, shipping, total };
+  }, [cartItems, getTotalPrice]);
+
+  // 檢查購物車是否為空
+  if (cartItems.length === 0) {
+    return (
+      <div className={commonStyles.pageContainer}>
+        <div className="text-center py-20">
+          <div className="text-6xl mb-6">🛒</div>
+          <h1 className={tw.heading.h2}>購物車是空的</h1>
+          <p className={`${tw.text.bodyLarge} mt-4 mb-8`}>
+            請先選擇商品加入購物車
+          </p>
+          <button
+            className={tw.button.primary}
+            onClick={() => navigate('/products')}
+          >
+            去購物
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   const handleInputChange = (field: keyof CheckoutForm, value: string) => {
     setForm(prev => ({ ...prev, [field]: value }));
   };
@@ -38,14 +76,45 @@ const Checkout: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    setLoading(false);
-    alert('訂單已成功提交！');
+    try {
+      if (!user) {
+        alert('請先登入再結帳');
+        setLoading(false);
+        return;
+      }
+      createOrder({
+        userId: user.email,
+        items: cartItems.map(item => ({
+          id: String(item.id),
+          name: item.name,
+          price: item.price,
+          quantity: item.quantity,
+          image: item.image,
+        })),
+        total,
+        shipping,
+        subtotal,
+        status: 'pending',
+        shippingAddress: {
+          firstName: form.firstName,
+          lastName: form.lastName,
+          email: form.email,
+          phone: form.phone,
+          address: form.address,
+          city: form.city,
+          postalCode: form.postalCode,
+        },
+        paymentMethod: form.paymentMethod,
+      });
+      clearCart();
+      alert('訂單已成功提交！感謝您的購買。');
+      navigate('/orders');
+    } catch {
+      alert('訂單提交失敗，請重試。');
+    } finally {
+      setLoading(false);
+    }
   };
-
-  const subtotal = 85000;
-  const shipping = 0;
-  const total = subtotal + shipping;
 
   return (
     <div className={commonStyles.pageContainer}>
@@ -151,22 +220,20 @@ const Checkout: React.FC = () => {
             <div className="p-6">
               <h2 className={`${tw.heading.h4} mb-6`}>訂單摘要</h2>
               <div className="space-y-4 mb-6">
-                <div className="flex items-center gap-3">
-                  <img src="https://images.unsplash.com/photo-1592750475338-74b7b21085ab?auto=format&fit=crop&w=100&q=80" alt="iPhone 15 Pro Max" className="w-12 h-12 object-cover rounded" />
-                  <div className="flex-1">
-                    <div className="font-medium">iPhone 15 Pro Max</div>
-                    <div className="text-sm text-secondary-500">數量: 1</div>
+                {cartItems.map((item) => (
+                  <div key={item.id} className="flex items-center gap-3">
+                    <img
+                      src={item.image}
+                      alt={item.name}
+                      className="w-12 h-12 object-cover rounded"
+                    />
+                    <div className="flex-1">
+                      <div className="font-medium">{item.name}</div>
+                      <div className="text-sm text-secondary-500">數量: {item.quantity}</div>
+                    </div>
+                    <div className="font-bold">NT$ {(item.price * item.quantity).toLocaleString()}</div>
                   </div>
-                  <div className="font-bold">NT$ 45,900</div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <img src="https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=100&q=80" alt="MacBook Air M2" className="w-12 h-12 object-cover rounded" />
-                  <div className="flex-1">
-                    <div className="font-medium">MacBook Air M2</div>
-                    <div className="text-sm text-secondary-500">數量: 1</div>
-                  </div>
-                  <div className="font-bold">NT$ 35,900</div>
-                </div>
+                ))}
               </div>
               <div className="space-y-3 border-t border-secondary-200 pt-4">
                 <div className="flex justify-between">
@@ -175,7 +242,9 @@ const Checkout: React.FC = () => {
                 </div>
                 <div className="flex justify-between">
                   <span className={tw.text.body}>運費</span>
-                  <span className="font-medium text-success">免費</span>
+                  <span className="font-medium text-success">
+                    {shipping === 0 ? '免費' : `NT$ ${shipping.toLocaleString()}`}
+                  </span>
                 </div>
                 <div className="border-t border-secondary-200 pt-3">
                   <div className="flex justify-between">

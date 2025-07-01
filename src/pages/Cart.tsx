@@ -1,69 +1,65 @@
-import React, { useState } from 'react';
+import React, { useMemo } from 'react';
 import { tw, commonStyles } from '../utils/tw';
-
-interface CartItem {
-  id: number;
-  name: string;
-  price: number;
-  originalPrice?: number;
-  image: string;
-  quantity: number;
-  badge?: string;
-}
+import { useCart } from '../hooks/useCart';
+import { useProducts } from '../hooks/useProducts';
+import { useNavigate } from 'react-router-dom';
+import CartRecommendations from '../components/CartRecommendations';
 
 const Cart: React.FC = () => {
-  const [cartItems, setCartItems] = useState<CartItem[]>([
-    {
-      id: 1,
-      name: "iPhone 15 Pro Max",
-      price: 45900,
-      originalPrice: 49900,
-      image: "https://images.unsplash.com/photo-1592750475338-74b7b21085ab?auto=format&fit=crop&w=600&q=80",
-      quantity: 1,
-      badge: "熱門"
-    },
-    {
-      id: 2,
-      name: "MacBook Air M2",
-      price: 35900,
-      originalPrice: 39900,
-      image: "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=600&q=80",
-      quantity: 1,
-      badge: "新品"
-    },
-    {
-      id: 3,
-      name: "Nike Air Max 270",
-      price: 3200,
-      originalPrice: 4200,
-      image: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=600&q=80",
-      quantity: 2,
-      badge: "限時"
-    }
-  ]);
+  const navigate = useNavigate();
 
-  const updateQuantity = (id: number, newQuantity: number) => {
-    if (newQuantity < 1) return;
-    setCartItems(items =>
-      items.map(item =>
-        item.id === id ? { ...item, quantity: newQuantity } : item
-      )
+  // 使用購物車 Hook（類似 Angular 注入 CartService）
+  const {
+    cartItems,
+    loading,
+    error,
+    updateQuantity,
+    removeFromCart,
+    getTotalPrice,
+    clearCart
+  } = useCart();
+
+  // 使用商品 Hook
+  const { products } = useProducts();
+
+  // ✅ 使用 useMemo 優化計算 - 只有 cartItems 改變時才重新計算
+  const { subtotal, shipping, total } = useMemo(() => {
+    const subtotal = getTotalPrice();
+    const shipping = subtotal > 10000 ? 0 : 300;
+    const total = subtotal + shipping;
+
+    return { subtotal, shipping, total };
+  }, [cartItems]); // 依賴 cartItems，只有購物車內容改變時才重新計算
+
+  // 導航到商品頁面
+  const goPurchase = () => {
+    navigate('/products');
+  };
+
+  // 前往結帳頁面
+  const goToCheckout = () => {
+    navigate('/checkout');
+  };
+
+  if (loading) {
+    return (
+      <div className={commonStyles.pageContainer}>
+        <div className="flex items-center justify-center min-h-96">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+        </div>
+      </div>
     );
-  };
+  }
 
-  const removeItem = (id: number) => {
-    setCartItems(items => items.filter(item => item.id !== id));
-  };
-
-  const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const totalDiscount = cartItems.reduce((sum, item) => {
-    if (item.originalPrice) {
-      return sum + ((item.originalPrice - item.price) * item.quantity);
-    }
-    return sum;
-  }, 0);
-  const shipping = subtotal > 10000 ? 0 : 300;
-  const total = subtotal + shipping;
+  if (error) {
+    return (
+      <div className={commonStyles.pageContainer}>
+        <div className="text-center p-8">
+          <p className="text-red-600">錯誤：{error}</p>
+        </div>
+      </div>
+    );
+  }
 
   if (cartItems.length === 0) {
     return (
@@ -74,7 +70,7 @@ const Cart: React.FC = () => {
           <p className={`${tw.text.bodyLarge} mt-4 mb-8`}>
             快去選購您喜歡的商品吧！
           </p>
-          <button className={tw.button.primary}>
+          <button className={tw.button.primary} onClick={goPurchase}>
             開始購物
           </button>
         </div>
@@ -104,11 +100,6 @@ const Cart: React.FC = () => {
                       alt={item.name}
                       className="w-full h-full object-cover rounded-lg"
                     />
-                    {item.badge && (
-                      <span className={`${tw.badge.primary} absolute -top-2 -right-2 text-xs`}>
-                        {item.badge}
-                      </span>
-                    )}
                   </div>
 
                   {/* 商品資訊 */}
@@ -118,11 +109,6 @@ const Cart: React.FC = () => {
                       <span className="text-lg font-bold text-primary-600">
                         NT$ {item.price.toLocaleString()}
                       </span>
-                      {item.originalPrice && (
-                        <span className="text-sm text-secondary-400 line-through">
-                          NT$ {item.originalPrice.toLocaleString()}
-                        </span>
-                      )}
                     </div>
                   </div>
 
@@ -132,6 +118,7 @@ const Cart: React.FC = () => {
                       onClick={() => updateQuantity(item.id, item.quantity - 1)}
                       className="w-8 h-8 rounded-full border border-secondary-300 flex items-center justify-center hover:bg-secondary-50 transition-colors duration-200"
                       aria-label="減少數量"
+                      disabled={item.quantity <= 1}
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
@@ -158,7 +145,7 @@ const Cart: React.FC = () => {
 
                   {/* 刪除按鈕 */}
                   <button
-                    onClick={() => removeItem(item.id)}
+                    onClick={() => removeFromCart(item.id)}
                     className="ml-4 p-2 text-secondary-400 hover:text-error hover:bg-red-50 rounded-lg transition-colors duration-200"
                     aria-label="移除商品"
                   >
@@ -184,13 +171,6 @@ const Cart: React.FC = () => {
                   <span className="font-medium">NT$ {subtotal.toLocaleString()}</span>
                 </div>
 
-                {totalDiscount > 0 && (
-                  <div className="flex justify-between text-success">
-                    <span>折扣優惠</span>
-                    <span>-NT$ {totalDiscount.toLocaleString()}</span>
-                  </div>
-                )}
-
                 <div className="flex justify-between">
                   <span className={tw.text.body}>運費</span>
                   <span className="font-medium">
@@ -198,13 +178,7 @@ const Cart: React.FC = () => {
                   </span>
                 </div>
 
-                {shipping > 0 && (
-                  <div className="text-sm text-secondary-500">
-                    滿 NT$ 10,000 免運費
-                  </div>
-                )}
-
-                <div className="border-t border-secondary-200 pt-4">
+                <div className="border-t pt-4">
                   <div className="flex justify-between">
                     <span className={`${tw.heading.h5}`}>總計</span>
                     <span className={`${tw.heading.h5} text-primary-600`}>
@@ -215,30 +189,27 @@ const Cart: React.FC = () => {
               </div>
 
               <div className="mt-6 space-y-3">
-                <button className={`${tw.button.primary} w-full`}>
+                <button
+                  className={tw.button.primary}
+                  onClick={goToCheckout}
+                >
                   前往結帳
                 </button>
-                <button className={`${tw.button.secondary} w-full`}>
-                  繼續購物
-                </button>
-              </div>
-
-              {/* VIP 專屬優惠 */}
-              <div className="mt-6 p-4 bg-gradient-to-r from-accent-50 to-accent-100 rounded-lg border border-accent-200">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-accent-600">💎</span>
-                  <span className="font-semibold text-accent-800">VIP 專屬優惠</span>
-                </div>
-                <p className="text-sm text-accent-700">
-                  成為 VIP 會員，享受額外 5% 折扣及免費運費！
-                </p>
-                <button className={`${tw.button.outline} w-full mt-3 text-accent-600 border-accent-300 hover:bg-accent-50`}>
-                  立即升級 VIP
+                <button
+                  onClick={clearCart}
+                  className={tw.button.outline}
+                >
+                  清空購物車
                 </button>
               </div>
             </div>
           </div>
         </div>
+      </div>
+
+      {/* 商品推薦 */}
+      <div className="mt-16">
+        <CartRecommendations products={products} maxItems={4} />
       </div>
     </div>
   );

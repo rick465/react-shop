@@ -4,6 +4,7 @@ export const tw = {
   container: {
     main: "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8",
     narrow: "max-w-4xl mx-auto px-4 sm:px-6 lg:px-8",
+    product: "max-w-16xl mx-auto px-4 sm:px-6 lg:px-8",
     wide: "max-w-full mx-auto px-4 sm:px-6 lg:px-8",
   },
 
@@ -119,7 +120,9 @@ export const commonStyles = {
   // 頁面容器
   pageContainer: `${tw.container.main} ${tw.spacing.section}`,
 
-  // 英雄區塊
+  // 商品頁面容器
+  productContainer: `${tw.container.product} ${tw.spacing.section}`,
+
   heroSection: `${tw.background.hero} ${tw.spacing.sectionLarge} text-white`,
 
   // 特色區塊

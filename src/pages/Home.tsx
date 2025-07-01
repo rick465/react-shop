@@ -1,7 +1,14 @@
 import React from 'react';
 import { tw, commonStyles } from '../utils/tw';
+import { useNavigate, Link } from 'react-router-dom';
+import { useState } from 'react';
+import { useProducts } from '../hooks/useProducts';
 
 const Home: React.FC = () => {
+  const [search, setSearch] = useState('');
+  const navigate = useNavigate();
+  const { products, loading: productsLoading, error: productsError } = useProducts();
+
   const features = [
     {
       icon: "🎯",
@@ -104,6 +111,30 @@ const Home: React.FC = () => {
               <div className="absolute -bottom-4 -left-4 w-24 h-24 bg-primary-400 rounded-full opacity-20 animate-bounce-gentle" style={{animationDelay: '1s'}}></div>
             </div>
           </div>
+          {/* 新增首頁搜尋欄 */}
+          <form
+            className="mt-8 flex flex-col sm:flex-row gap-4 items-center justify-center"
+            onSubmit={e => {
+              e.preventDefault();
+              if (search.trim()) {
+                navigate(`/products?search=${encodeURIComponent(search.trim())}`);
+              }
+            }}
+          >
+            <input
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="搜尋商品、品牌、關鍵字..."
+              className="w-full max-w-md px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-400 text-lg shadow-sm"
+            />
+            <button
+              type="submit"
+              className="px-6 py-3 rounded-lg bg-primary-600 text-white font-semibold text-lg hover:bg-primary-700 transition-colors shadow"
+            >
+              搜尋
+            </button>
+          </form>
         </div>
       </section>
 
@@ -163,6 +194,99 @@ const Home: React.FC = () => {
               </div>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* 精選商品區塊 */}
+      <section className={commonStyles.contentSection}>
+        <div className={tw.container.main}>
+          <div className="text-center mb-16">
+            <h2 className={tw.heading.h2}>精選商品</h2>
+            <p className={`${tw.text.bodyLarge} max-w-3xl mx-auto mt-6`}>
+              熱門精選商品，立即搶購！
+            </p>
+          </div>
+          {productsLoading ? (
+            <div className="flex justify-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+            </div>
+          ) : productsError ? (
+            <div className="text-center text-red-600 py-8">{productsError}</div>
+          ) : (
+            <div className={tw.grid.cards}>
+              {[...products].sort((a, b) => b.rating - a.rating).slice(0, 4).map(product => (
+                <div key={product.id} className={tw.card.interactive}>
+                  <div className="relative">
+                    <Link to={`/products/${product.id}`}>
+                      <img
+                        src={product.image}
+                        alt={product.name}
+                        className="w-full h-48 object-cover hover:scale-105 transition-transform duration-200"
+                      />
+                    </Link>
+                    {product.badge && (
+                      <div className="absolute top-4 left-4">
+                        <span className={tw.badge.primary}>{product.badge}</span>
+                      </div>
+                    )}
+                    {product.originalPrice && product.originalPrice > product.price && (
+                      <div className="absolute top-4 right-4">
+                        <span className={tw.badge.accent}>
+                          -{Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)}%
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-6">
+                    <Link to={`/products/${product.id}`} className="block">
+                      <h3 className={`${tw.heading.h6} mb-2 hover:text-primary-600 transition-colors`}>
+                        {product.name}
+                      </h3>
+                    </Link>
+                    <div className="flex items-center mb-3">
+                      <div className="flex items-center">
+                        {[...Array(5)].map((_, i) => (
+                          <svg
+                            key={i}
+                            className={`w-4 h-4 ${i < Math.floor(product.rating) ? 'text-yellow-400' : 'text-gray-300'}`}
+                            fill="currentColor"
+                            viewBox="0 0 20 20"
+                          >
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                          </svg>
+                        ))}
+                      </div>
+                      <span className="text-sm text-secondary-500 ml-2">({product.reviews})</span>
+                    </div>
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xl font-bold text-primary-600">NT$ {product.price.toLocaleString()}</span>
+                        {product.originalPrice && (
+                          <span className="text-sm text-secondary-400 line-through">
+                            NT$ {product.originalPrice.toLocaleString()}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Link
+                        to={`/products/${product.id}`}
+                        className={`${tw.button.outline} flex-1 text-center`}
+                      >
+                        查看詳情
+                      </Link>
+                      <Link
+                        to={`/products/${product.id}`}
+                        className={`${tw.button.primary} flex-1 text-center`}
+                      >
+                        加入購物車
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
